@@ -1,20 +1,34 @@
 .App {
+  height: 100vh;
+}
+
+.containar{
   display: flex;
+  flex-wrap: wrap;
+  height: 100vh;
+}
+
+.map {
+  flex-basis: 50%;
 }
 
 .list {
-  flex-basis: 20%;
+  flex-grow: 1;
+  width: 100%;
 }
 
+table {
+  width: 100%;
+}
 thead, tbody { display: block; }
 tbody {
-  height: 95vh;
+  height: 20vh;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-.map {
-  flex-basis: 80%;
+.graph {
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -5,6 +5,8 @@ import countries from "world-countries";
 import Modal from "react-modal";
 import worldData from "./admin_0_countries.json";
 import Pin from "./Pin";
+import SampleGraph from "./SampleGraph";
+import { range } from "d3";
 
 import "./App.css"
 
@@ -61,6 +63,12 @@ const fillCountry = (properties, countryKey) => {
   return thisCountryKey === countryKey ? selectedColor : unSelectedColor;
 };
 
+const generateData = (value, length = 5) =>
+  range(length).map((item, index) => ({
+    date: index,
+    value: value === null || value === undefined ? Math.random() * 100 : value
+  }));
+
 export default function App() {
   const [scale, setScale] = useState(2.5);
   const [x, setX] = useState(0);
@@ -68,6 +76,13 @@ export default function App() {
   const [isDrag, setIsDrag] = useState(false);
   const [countryKey, setCountryKey] = useState("");
   const [modalIsOpen, setIsOpen] = useState(false);
+  const [inputCountory, setInputCountry] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+
+  const [data, setData] = useState(generateData());
+  const changeData = () => {
+    setData(generateData());
+  };
 
   const tbodyRef = useRef(null);
 
@@ -83,88 +98,116 @@ export default function App() {
 
   return (
     <div className="App">
-      <div className="list">
-        <table>
-          <thead>
-            <tr>
-              <th>ISO3</th>
-              <th>国名</th>
-            </tr>
-          </thead>
-          <tbody ref={tbodyRef}>
-            {selectors.map(v => (
-              <tr
-                key={v.code}
-                onMouseOver={()=> {
-                  const [x, y] = projectMercator()(pinCoordinates(v.code));
-                  setX(x-250);
-                  setY(y-150);
-                  setCountryKey(v.code);
-                }}
-                onDoubleClick={()=> setIsOpen(true)}
-              >
-                <td>{v.code}</td>
-                <td>{v.name}</td>
+      <div className="containar">
+        <div className="list">
+          <h2>検索</h2>
+          <input
+            type="text"
+            placeholder={"国名"} 
+            value={inputCountory}
+            onInput={(e) => {
+              setIsSearching(false); 
+              setInputCountry(e.target.value);
+            }}
+          />
+          <button onClick={() => setIsSearching(true)}>検索</button>
+        </div>
+        <div className="map">
+          <svg
+            viewBox={`${x} ${y} ${cx} ${cy}`}
+            onWheel={event => setScale(prev => {
+              if((prev < 0.5 && event.deltaY < 0) || (5 < prev && 0 <= event.deltaY)) {
+                return prev;
+              }
+              return event.deltaY < 0 ? prev - 0.2 : prev + 0.2
+            })}
+            onMouseDown={() => setIsDrag(true)}
+            onMouseMove={event => {
+              if(isDrag) {
+                const { movementX, movementY } = event;
+                setX(prev => movementX * -0.3 + prev);
+                setY(prev => movementY * -0.3 + prev);
+              }
+            }}
+            onMouseUp={() => setIsDrag(false)}
+            onMouseLeave={() => setIsDrag(false)}
+            // onTouchStart={event => console.log("onTouchStart", event)}
+            // onTouchMove={event => console.log("onTouchMove", event)}
+            // onTouchEnd={event => console.log("onTouchEnd", event)}
+          >
+            <g>
+              {geographies.map((d, i) => (
+                <path
+                  key={`path-${i}`}
+                  d={geoPath().projection(projectMercator())(d)}
+                  fill={`${fillCountry(d.properties, countryKey)}`}
+                  stroke="#000000"
+                  strokeWidth={0.8}
+                  onClick={() => {
+                    tbodyRef.current.scrollTop = (23 * i) + (1 * i);
+                    setCountryKey(d.properties.ISO_A3);
+                    changeData();
+                  }}
+                  onDoubleClick={() => setIsOpen(true)}
+                />
+              ))}
+            </g>
+            <g>
+              {defaultPins.map((pins) => (
+                <Pin
+                  key={`pin-${pins.countryKey}`}
+                  x={projectMercator()(pins.coordinates)[0]}
+                  y={projectMercator()(pins.coordinates)[1]} />
+              ))}
+              {(countryKey && !defaultCountries.includes(countryKey)) &&
+                <Pin
+                  key={`pin-hover-${countryKey}`}
+                  x={projectMercator()(pinCoordinates(countryKey) || [0, 0])[0]}
+                  y={projectMercator()(pinCoordinates(countryKey) || [0, 0])[1]} />
+              }
+            </g>
+            <text x={cx+x-100} y={cy+y} fontSize="5">Made with Natural Earth.</text>
+          </svg>
+        </div>
+        <div className="map">
+          <SampleGraph
+            data={data}
+            width={200}
+            height={200}
+            innerRadius={60}
+            outerRadius={100}
+          />
+        </div>
+        <div className="list">
+          <table>
+            <thead>
+              <tr>
+                <th>ISO3</th>
+                <th>国名</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="map">
-        <svg
-          viewBox={`${x} ${y} ${cx} ${cy}`}
-          onWheel={event => setScale(prev => {
-            if((prev < 0.5 && event.deltaY < 0) || (5 < prev && 0 <= event.deltaY)) {
-              return prev;
-            }
-            return event.deltaY < 0 ? prev - 0.2 : prev + 0.2
-          })}
-          onMouseDown={() => setIsDrag(true)}
-          onMouseMove={event => {
-            if(isDrag) {
-              const { movementX, movementY } = event;
-              setX(prev => movementX * -0.3 + prev);
-              setY(prev => movementY * -0.3 + prev);
-            }
-          }}
-          onMouseUp={() => setIsDrag(false)}
-          onMouseLeave={() => setIsDrag(false)}
-          // onTouchStart={event => console.log("onTouchStart", event)}
-          // onTouchMove={event => console.log("onTouchMove", event)}
-          // onTouchEnd={event => console.log("onTouchEnd", event)}
-        >
-          <g>
-            {geographies.map((d, i) => (
-              <path
-                key={`path-${i}`}
-                d={geoPath().projection(projectMercator())(d)}
-                fill={`${fillCountry(d.properties, countryKey)}`}
-                stroke="#000000"
-                strokeWidth={0.8}
-                onClick={() => {
-                  tbodyRef.current.scrollTop = (23 * i) + (1 * i);
-                  setCountryKey(d.properties.ISO_A3);
-                }}
-                onDoubleClick={() => setIsOpen(true)}
-              />
-            ))}
-          </g>
-          <g>
-            {defaultPins.map((pins) => (
-              <Pin
-                key={`pin-${pins.countryKey}`}
-                x={projectMercator()(pins.coordinates)[0]}
-                y={projectMercator()(pins.coordinates)[1]} />
-            ))}
-            {(countryKey && !defaultCountries.includes(countryKey)) &&
-              <Pin
-                key={`pin-hover-${countryKey}`}
-                x={projectMercator()(pinCoordinates(countryKey) || [0, 0])[0]}
-                y={projectMercator()(pinCoordinates(countryKey) || [0, 0])[1]} />
-            }
-          </g>
-          <text x={cx+x-100} y={cy+y} fontSize="5">Made with Natural Earth.</text>
-        </svg>
+            </thead>
+            <tbody ref={tbodyRef}>
+              {selectors.filter(v => !isSearching || !inputCountory || (isSearching && v.name === inputCountory)).map(v => (
+                <tr
+                  key={v.code}
+                  onMouseOver={()=> {
+                    const [x, y] = projectMercator()(pinCoordinates(v.code));
+                    setX(x-250);
+                    setY(y-150);
+                    setCountryKey(v.code);
+                  }}
+                  onDoubleClick={()=> {
+                    setIsOpen(true);
+                    changeData();
+                  }}
+                >
+                  <td>{v.code}</td>
+                  <td>{v.name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <Modal appElement={document.getElementById("root")} isOpen={modalIsOpen} style={customStyles}>
         <button onClick={() => setIsOpen(false)}>Close Modal</button>
